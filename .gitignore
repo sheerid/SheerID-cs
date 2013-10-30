@@ -1,0 +1,11 @@
+# VS user files #
+#################
+*.suo
+*.user
+
+
+# Compiled source #
+###################
+bin/
+obj/
+TestResults
