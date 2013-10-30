@@ -2,8 +2,11 @@ SheerID-cs
 ===========
 
 SheerID - C# Library
+
 VerificationConsole - Testing Console
+
 ConsoleTools - Console Helper Library
+
 SheerIDTests - Unit Test
 
 
