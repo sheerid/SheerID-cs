@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SheerID;
+using System.Linq;
 
 namespace SheerIDTests
 {
@@ -10,11 +11,26 @@ namespace SheerIDTests
         static API api;
         static string accessCode="";
         static API.TokenResponse assetToken;
+
+        private API TestAPI
+        {
+            get
+            {
+                if (api == null)
+                {
+                    ReadAccessCode();
+                    Constructor();
+                }
+                return api;
+            }
+        }
+
         [TestMethod]
         public void ReadAccessCode()
         {
             //Place an access code into a file (c:\users\YOU\accesscode)
             //without the access code all remote tests will fail
+            //access codes can be generated at https://services-sandbox.sheerid.com/home/tokens.html
             accessCode = System.IO.File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\accesscode");
         }
 
@@ -233,6 +249,60 @@ namespace SheerIDTests
         public void RevokeToken()
         {
             Assert.IsTrue(api.RevokeToken(assetToken));
+        }
+
+        private const string NAMESPACE_PREFIX = "SheerID-cs-NameSpaceTest-";
+        string _namespace;
+        private string TestNamespace
+        {
+            get
+            {
+                if (_namespace == null)
+                {
+                    _namespace = NAMESPACE_PREFIX + Guid.NewGuid().ToString();
+                }
+                return _namespace;
+            }
+        }
+
+        [TestMethod]
+        public void GetNameSpace_Failure()
+        {
+            Assert.IsTrue(TestAPI.GetNamespace(TestNamespace).Status == System.Net.HttpStatusCode.NotFound);
+        }
+
+        [TestMethod]
+        public void MapNameSpace()
+        {
+            //TODO: replace with real template
+            Assert.IsTrue(TestAPI.MapNamespace(TestNamespace, new API.VerificationRequestTemplate()).Status == System.Net.HttpStatusCode.NoContent);
+        }
+
+        [TestMethod]
+        public void ReMapNameSpace()
+        {
+            //TODO: replace with real template, but different than in MapNameSpace
+            Assert.IsTrue(TestAPI.MapNamespace(TestNamespace, new API.VerificationRequestTemplate()).Status == System.Net.HttpStatusCode.NoContent);
+        }
+
+        [TestMethod]
+        public void ListNameSpace()
+        {
+            Assert.IsTrue(TestAPI.ListNamespaces().GetResponse().Any(o => o.Name == TestNamespace));
+        }
+
+        [TestMethod]
+        public void DeleteAllTestingNameSpaces()
+        {
+            foreach (var remoteNamespace in TestAPI.ListNamespaces().GetResponse())
+            {//Delete any namespace that starts with NAMESPACE_PREFIX followe by a GUID
+                Guid tempGuid;
+                if (remoteNamespace.Name.StartsWith(NAMESPACE_PREFIX)
+                    && Guid.TryParse(remoteNamespace.Name.Substring(NAMESPACE_PREFIX.Length), out tempGuid))
+                {//NAMESPACE_PREFIX forced just in case
+                    Assert.IsTrue(TestAPI.DeleteNamespace(NAMESPACE_PREFIX + remoteNamespace.Name.Replace(NAMESPACE_PREFIX, "")));
+                }
+            }
         }
     }
 }
