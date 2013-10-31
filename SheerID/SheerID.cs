@@ -57,19 +57,19 @@ namespace SheerID
             return this.rest.Get<List<Namespace>>("/namespace");
         }
 
-        public ServiceResponse<Namespace> GetNamespace(string name)
+        public ServiceResponse<Namespace> GetNamespace(Namespace name_space)
         {
-            return this.rest.Get<Namespace>(string.Format("/namespace/{0}", name));
+            return this.rest.Get<Namespace>(string.Format("/namespace/{0}", name_space.Name));
         }
 
-        public bool DeleteNamespace(string name)
+        public bool DeleteNamespace(Namespace name_space)
         {
-            return this.rest.Delete<Namespace>(string.Format("/namespace/{0}", name)).Status == HttpStatusCode.NoContent;
+            return this.rest.Delete<Namespace>(string.Format("/namespace/{0}", name_space.Name.ToString())).Status == HttpStatusCode.NoContent;
         }
 
-        public ServiceResponse<Namespace> MapNamespace(string name, VerificationRequestTemplate template)
+        public ServiceResponse<Namespace> MapNamespace(Namespace name_space, VerificationRequestTemplate template)
         {
-            return this.rest.Put<Namespace>(string.Format("/namespace/{0}", name), new Dictionary<string, string>() { { "templateId", template.Id } });
+            return this.rest.Put<Namespace>(string.Format("/namespace/{0}", name_space.Name), new Dictionary<string, string>() { { "templateId", template.Id } });
         }
 
         public ServiceResponse<byte[]> GetAssetData(string assetId)
@@ -625,7 +625,40 @@ namespace SheerID
         public class Namespace
         {
             public string TemplateId;
-            public string Name;
+            private string _name;
+            public string Name
+            {
+                get { return _name; }
+                set 
+                {
+                    var tempname = value.Replace(' ', '-');
+                    var validator = new System.Text.RegularExpressions.Regex(@"[a-zA-Z0-9\-]*");
+                    if (validator.Match(tempname).Value == tempname)
+                    {
+                        _name = tempname;
+                    }
+                    else
+                    {
+                        throw new NamespaceValidationException("The namespace specified is invalid, it must contain alphanumeric and the - character only. Note that spaces will be converted to -");
+                    }
+                }
+            }
+            public bool TrySet_Name(string name)
+            {
+                try
+                {
+                    Name = name;
+                    return true;
+                }
+                catch (NamespaceValidationException)
+                {
+                    return false;
+                }
+            }
+            public class NamespaceValidationException : Exception 
+            {
+                public NamespaceValidationException(string message) : base(message) { }
+            }
         }
         public class VerificationResponse : ResponseErrors
         {

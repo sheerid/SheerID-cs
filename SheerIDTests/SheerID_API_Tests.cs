@@ -252,14 +252,14 @@ namespace SheerIDTests
         }
 
         private const string NAMESPACE_PREFIX = "SheerID-cs-NameSpaceTest-";
-        string _namespace;
-        private string TestNamespace
+        API.Namespace _namespace;
+        private API.Namespace TestNamespace
         {
             get
             {
                 if (_namespace == null)
                 {
-                    _namespace = NAMESPACE_PREFIX + Guid.NewGuid().ToString();
+                    _namespace = new API.Namespace() { Name = NAMESPACE_PREFIX + Guid.NewGuid().ToString() };
                 }
                 return _namespace;
             }
@@ -288,7 +288,7 @@ namespace SheerIDTests
         [TestMethod]
         public void ListNameSpace()
         {
-            Assert.IsTrue(TestAPI.ListNamespaces().GetResponse().Any(o => o.Name == TestNamespace));
+            Assert.IsTrue(TestAPI.ListNamespaces().GetResponse().Any(o => o.Name == TestNamespace.Name));
         }
 
         [TestMethod]
@@ -300,7 +300,7 @@ namespace SheerIDTests
                 if (remoteNamespace.Name.StartsWith(NAMESPACE_PREFIX)
                     && Guid.TryParse(remoteNamespace.Name.Substring(NAMESPACE_PREFIX.Length), out tempGuid))
                 {//NAMESPACE_PREFIX forced just in case
-                    Assert.IsTrue(TestAPI.DeleteNamespace(NAMESPACE_PREFIX + remoteNamespace.Name.Replace(NAMESPACE_PREFIX, "")));
+                    Assert.IsTrue(TestAPI.DeleteNamespace(new API.Namespace() { Name = NAMESPACE_PREFIX + remoteNamespace.Name.Replace(NAMESPACE_PREFIX, "") }));
                 }
             }
         }
