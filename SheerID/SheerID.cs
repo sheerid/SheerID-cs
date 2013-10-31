@@ -52,6 +52,21 @@ namespace SheerID
         #endregion
 
         #region Public Methods
+        public ServiceResponse<Namespace> CreateTemplate(List<AffiliationType> affiliationTypes, List<AssetType> assetTypes, List<string> rewardIds, List<VerificationType> verificationTypes, string name)
+        {
+            return this.rest.Post<Namespace>(string.Format("/template", new Dictionary<string, string>() { 
+            { "_affiliationTypes", ListToString<AffiliationType>(affiliationTypes) }, 
+            { "_assetTypes", ListToString<AssetType>(assetTypes) }, 
+            { "_rewardIds", ListToString<string>(rewardIds) }, 
+            { "_verificationTypes", ListToString<VerificationType>(verificationTypes) }, 
+            { "name", name } }));
+        }
+
+        public ServiceResponse<VerificationRequestTemplate> GetTemplate(string templateId)
+        {
+            return this.rest.Get<VerificationRequestTemplate>(string.Format("/template/{0}", templateId));
+        }
+
         public ServiceResponse<List<Namespace>> ListNamespaces()
         {
             return this.rest.Get<List<Namespace>>("/namespace");
@@ -750,6 +765,18 @@ namespace SheerID
         {
             public string Message { get; set; }
             public int Code { get; set; }
+        }
+        #endregion
+
+        #region Helpers
+        string ListToString<T>(List<T> list)
+        {
+            string r="";
+            foreach (T item in list)
+            {
+                r += "," + item.ToString();
+            }
+            return r.Substring(1);
         }
         #endregion
     }
