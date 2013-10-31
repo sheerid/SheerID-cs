@@ -52,14 +52,14 @@ namespace SheerID
         #endregion
 
         #region Public Methods
-        public ServiceResponse<Namespace> CreateTemplate(List<AffiliationType> affiliationTypes, List<AssetType> assetTypes, List<string> rewardIds, List<VerificationType> verificationTypes, string name)
+        public ServiceResponse<VerificationRequestTemplate> CreateTemplate(List<AffiliationType> affiliationTypes, List<AssetType> assetTypes, List<string> rewardIds, List<VerificationType> verificationTypes, string name)
         {
-            return this.rest.Post<Namespace>(string.Format("/template", new Dictionary<string, string>() { 
+            return this.rest.Post<VerificationRequestTemplate>("/template", new Dictionary<string, string>() { 
             { "_affiliationTypes", ListToString<AffiliationType>(affiliationTypes) }, 
             { "_assetTypes", ListToString<AssetType>(assetTypes) }, 
             { "_rewardIds", ListToString<string>(rewardIds) }, 
             { "_verificationTypes", ListToString<VerificationType>(verificationTypes) }, 
-            { "name", name } }));
+            { "name", name } });
         }
 
         public ServiceResponse<VerificationRequestTemplate> GetTemplate(string templateId)
@@ -67,24 +67,30 @@ namespace SheerID
             return this.rest.Get<VerificationRequestTemplate>(string.Format("/template/{0}", templateId));
         }
 
+        public ServiceResponse<List<VerificationRequestTemplate>> ListTemplate()
+        {
+            return this.rest.Get<List<VerificationRequestTemplate>>("/template");
+        }
+
         public ServiceResponse<List<Namespace>> ListNamespaces()
         {
             return this.rest.Get<List<Namespace>>("/namespace");
         }
 
-        public ServiceResponse<Namespace> GetNamespace(Namespace name_space)
+        public ServiceResponse<Namespace> GetNamespace(string name)
         {
-            return this.rest.Get<Namespace>(string.Format("/namespace/{0}", name_space.Name));
+            return this.rest.Get<Namespace>(string.Format("/namespace/{0}", name));
         }
 
-        public bool DeleteNamespace(Namespace name_space)
+        public bool DeleteNamespace(string name)
         {
-            return this.rest.Delete<Namespace>(string.Format("/namespace/{0}", name_space.Name.ToString())).Status == HttpStatusCode.NoContent;
+            return this.rest.Delete<Namespace>(string.Format("/namespace/{0}", name)).Status == HttpStatusCode.NoContent;
         }
 
-        public ServiceResponse<Namespace> MapNamespace(Namespace name_space, VerificationRequestTemplate template)
+        public ServiceResponse<Namespace> MapNamespace(string name, VerificationRequestTemplate template)
         {
-            return this.rest.Put<Namespace>(string.Format("/namespace/{0}", name_space.Name), new Dictionary<string, string>() { { "templateId", template.Id } });
+            if (!Namespace.IsValidateName(name)) { throw new Namespace.NamespaceValidationException(); }
+            return this.rest.Put<Namespace>(string.Format("/namespace/{0}", name), new Dictionary<string, string>() { { "templateId", template.Id } });
         }
 
         public ServiceResponse<byte[]> GetAssetData(string assetId)
@@ -422,6 +428,24 @@ namespace SheerID
                         writer.Write(bytes, 0, bytes.Length);
                     }
                 }
+                else if (this.method == "PUT")
+                {//TODO: redundant, move to helper
+
+                    req = WebRequest.Create(this.url) as HttpWebRequest;
+                    req.Headers.Add(System.Net.HttpRequestHeader.Authorization, this.authHeader);
+                    req.Method = "PUT";
+                    
+                    byte[] bytes;
+
+                    req.ContentType = "application/x-www-form-urlencoded";
+                    bytes = Encoding.UTF8.GetBytes(this.QueryString);
+
+                    req.ContentLength = bytes.Length;
+                    using (var writer = req.GetRequestStream())
+                    {
+                        writer.Write(bytes, 0, bytes.Length);
+                    }
+                }
                 else
                 {
                     //GET and DELETE
@@ -632,47 +656,23 @@ namespace SheerID
         #region SheerID API Objects
         public class VerificationRequestTemplate
         {
-            public string Id;
-            public string Name;
+            public string Id { get; set; }
+            public string Name { get; set; }
             public VerificationRequestConfig Config { get; set; }
             public Dictionary<string, string> Metadata { get; set; }    
         }
         public class Namespace
         {
-            public string TemplateId;
-            private string _name;
-            public string Name
+            public string TemplateId { get; set; }
+            public string Name { get; set; }
+            public static bool IsValidateName(string name)
             {
-                get { return _name; }
-                set 
-                {
-                    var tempname = value.Replace(' ', '-');
-                    var validator = new System.Text.RegularExpressions.Regex(@"[a-zA-Z0-9\-]*");
-                    if (validator.Match(tempname).Value == tempname)
-                    {
-                        _name = tempname;
-                    }
-                    else
-                    {
-                        throw new NamespaceValidationException("The namespace specified is invalid, it must contain alphanumeric and the - character only. Note that spaces will be converted to -");
-                    }
-                }
-            }
-            public bool TrySet_Name(string name)
-            {
-                try
-                {
-                    Name = name;
-                    return true;
-                }
-                catch (NamespaceValidationException)
-                {
-                    return false;
-                }
+                var validator = new System.Text.RegularExpressions.Regex(@"[a-z0-9\-]*");
+                return validator.Match(name).Value == name;
             }
             public class NamespaceValidationException : Exception 
-            {
-                public NamespaceValidationException(string message) : base(message) { }
+            { 
+                public NamespaceValidationException() : base("SheerId Namespaces must contain only lowercase, '-', or numeric characters.") { } 
             }
         }
         public class VerificationResponse : ResponseErrors

@@ -2,13 +2,14 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SheerID;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace SheerIDTests
 {
     [TestClass]
     public class APITests
     {
-        static API api;
+        static API api;//TODO: specify private
         static string accessCode="";
         static API.TokenResponse assetToken;
 
@@ -251,58 +252,95 @@ namespace SheerIDTests
             Assert.IsTrue(api.RevokeToken(assetToken));
         }
 
-        private const string NAMESPACE_PREFIX = "SheerID-cs-NameSpaceTest-";
-        API.Namespace _namespace;
-        private API.Namespace TestNamespace
-        {
-            get
+        private const string NAMESPACE_PREFIX = "sheerid-cs-namespacetest-";
+        private const string TEMPLATENAME1 = "sheerid-cs-TestingTemplate1";
+        private const string TEMPLATENAME2 = "sheerid-cs-TestingTemplate2";
+
+        [TestMethod]
+        public void PutTestingTemplates()
+        {//Because Templates cannot be deleted, the creation of a template will happen only once per account
+            var templates = ListTemplates().GetResponse();
+            if (!templates.Any(o => o.Name == TEMPLATENAME1))
             {
-                if (_namespace == null)
-                {
-                    _namespace = new API.Namespace() { Name = NAMESPACE_PREFIX + Guid.NewGuid().ToString() };
-                }
-                return _namespace;
+                Assert.IsTrue(CreateTestTemplate(TEMPLATENAME1).GetResponse().Name == TEMPLATENAME1);
             }
+            if (!templates.Any(o => o.Name == TEMPLATENAME2))
+            {
+                Assert.IsTrue(CreateTestTemplate(TEMPLATENAME2).GetResponse().Name == TEMPLATENAME2);
+            }
+            ListTemplatesTest();
         }
-
-        [TestMethod]
-        public void GetNameSpace_Failure()
+        private API.ServiceResponse<API.VerificationRequestTemplate> CreateTestTemplate(string name)
         {
-            Assert.IsTrue(TestAPI.GetNamespace(TestNamespace).Status == System.Net.HttpStatusCode.NotFound);
+            return TestAPI.CreateTemplate(
+            new System.Collections.Generic.List<AffiliationType>() { AffiliationType.STUDENT_FULL_TIME, AffiliationType.STUDENT_PART_TIME },
+            new System.Collections.Generic.List<AssetType>() { AssetType.DATED_ID_CARD, AssetType.TRANSCRIPT },
+            new System.Collections.Generic.List<string>() { name + "-TestingReward1", name + "-TestingReward2" },
+            new System.Collections.Generic.List<VerificationType>() { VerificationType.AUTHORITATIVE, VerificationType.ASSET_REVIEW },
+            name: name);
         }
 
         [TestMethod]
-        public void MapNameSpace()
+        public void GetTemplateTest()
         {
-            //TODO: replace with real template
-            Assert.IsTrue(TestAPI.MapNamespace(TestNamespace, new API.VerificationRequestTemplate()).Status == System.Net.HttpStatusCode.NoContent);
+            Assert.IsTrue(GetTemplateByName(TEMPLATENAME1).GetResponse().Name == TEMPLATENAME1);
         }
-
-        [TestMethod]
-        public void ReMapNameSpace()
+        private SheerID.API.ServiceResponse<API.VerificationRequestTemplate> GetTemplateByName(string name)
         {
-            //TODO: replace with real template, but different than in MapNameSpace
-            Assert.IsTrue(TestAPI.MapNamespace(TestNamespace, new API.VerificationRequestTemplate()).Status == System.Net.HttpStatusCode.NoContent);
+            return TestAPI.GetTemplate(
+                ListTemplates().GetResponse().First(o => o.Name == name).Id
+                );
         }
 
         [TestMethod]
-        public void ListNameSpace()
+        public void ListTemplatesTest()
         {
-            Assert.IsTrue(TestAPI.ListNamespaces().GetResponse().Any(o => o.Name == TestNamespace.Name));
+            Assert.IsTrue(ListTemplates().GetResponse().Any(o => o.Name == TEMPLATENAME1 || o.Name == TEMPLATENAME2));
+        }
+        private SheerID.API.ServiceResponse<List<API.VerificationRequestTemplate>> ListTemplates()
+        {
+            return TestAPI.ListTemplate();
+        }
+
+        private static string _namespace = NAMESPACE_PREFIX + Guid.NewGuid().ToString();
+
+        [TestMethod]
+        public void GetNamespace_Failure()
+        {
+            Assert.IsTrue(TestAPI.GetNamespace(_namespace).Status == System.Net.HttpStatusCode.NotFound);
         }
 
         [TestMethod]
-        public void DeleteAllTestingNameSpaces()
+        public void MapNamespace()
+        {
+            Assert.IsTrue(TestAPI.MapNamespace(_namespace, GetTemplateByName(TEMPLATENAME1).GetResponse()).GetResponse().Name == _namespace);
+        }
+
+        [TestMethod]
+        public void ReMapNamespace()
+        {
+            Assert.IsTrue(TestAPI.MapNamespace(_namespace, GetTemplateByName(TEMPLATENAME2).GetResponse()).GetResponse().Name == _namespace);
+        }
+
+        [TestMethod]
+        public void ListNamespace()
+        {
+            MapNamespace();
+            Assert.IsTrue(TestAPI.ListNamespaces().GetResponse().Any(o => o.Name.StartsWith(NAMESPACE_PREFIX)));
+        }
+
+        [TestMethod]
+        public void DeleteAllTestingNamespaces()
         {
             foreach (var remoteNamespace in TestAPI.ListNamespaces().GetResponse())
             {//Delete any namespace that starts with NAMESPACE_PREFIX followe by a GUID
                 Guid tempGuid;
-                if (remoteNamespace.Name.StartsWith(NAMESPACE_PREFIX)
-                    && Guid.TryParse(remoteNamespace.Name.Substring(NAMESPACE_PREFIX.Length), out tempGuid))
+                if (remoteNamespace.Name.StartsWith(NAMESPACE_PREFIX) && Guid.TryParse(remoteNamespace.Name.Substring(NAMESPACE_PREFIX.Length), out tempGuid))
                 {//NAMESPACE_PREFIX forced just in case
-                    Assert.IsTrue(TestAPI.DeleteNamespace(new API.Namespace() { Name = NAMESPACE_PREFIX + remoteNamespace.Name.Replace(NAMESPACE_PREFIX, "") }));
+                    Assert.IsTrue(TestAPI.DeleteNamespace(NAMESPACE_PREFIX + remoteNamespace.Name.Replace(NAMESPACE_PREFIX, "")));
                 }
             }
         }
+
     }
 }
