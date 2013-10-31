@@ -52,6 +52,25 @@ namespace SheerID
         #endregion
 
         #region Public Methods
+        public ServiceResponse<List<Namespace>> ListNamespaces()
+        {
+            return this.rest.Get<List<Namespace>>("/namespace");
+        }
+
+        public ServiceResponse<Namespace> GetNamespace(string name)
+        {
+            return this.rest.Get<Namespace>(string.Format("/namespace/{0}", name));
+        }
+
+        public bool DeleteNamespace(string name)
+        {
+            return this.rest.Delete<Namespace>(string.Format("/namespace/{0}", name)).Status == HttpStatusCode.NoContent;
+        }
+
+        public ServiceResponse<Namespace> MapNamespace(string name, VerificationRequestTemplate template)
+        {
+            return this.rest.Put<Namespace>(string.Format("/namespace/{0}", name), new Dictionary<string, string>() { { "templateId", template.Id } });
+        }
 
         public ServiceResponse<byte[]> GetAssetData(string assetId)
         {
@@ -268,6 +287,12 @@ namespace SheerID
             public ServiceResponse<T> Post<T>(string path, Dictionary<string, string> parameters = null, List<UploadableFile> files = null)
             {
                 SheerIDRequest req = new SheerIDRequest(this.accessToken, ref this.Log, "POST", this.Url(path), parameters, files, this.verbose);
+                return req.Execute<T>();
+            }
+
+            public ServiceResponse<T> Put<T>(string path, Dictionary<string, string> parameters = null, List<UploadableFile> files = null)
+            {
+                SheerIDRequest req = new SheerIDRequest(this.accessToken, ref this.Log, "PUT", this.Url(path), parameters, files, this.verbose);
                 return req.Execute<T>();
             }
 
@@ -590,6 +615,18 @@ namespace SheerID
         }
 
         #region SheerID API Objects
+        public class VerificationRequestTemplate
+        {
+            public string Id;
+            public string Name;
+            public VerificationRequestConfig Config { get; set; }
+            public Dictionary<string, string> Metadata { get; set; }    
+        }
+        public class Namespace
+        {
+            public string TemplateId;
+            public string Name;
+        }
         public class VerificationResponse : ResponseErrors
         {
             public List<Affiliation> Affiliations { get; set; }
