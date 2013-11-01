@@ -33,18 +33,100 @@ namespace VerificationConsole
                 while (1 == 1)
                 {
                     Console.Clear();
-                    var choices = new[] { "Verify", "Namespace Management" };
+                    var choices = new[] { "Verify", "Namespace Management", "Quit" };
                     var choice = output.PromptKeyMatrix<string>(choices, "Main Menu:");
                     if (choice == choices[0]) { VerifyConsole(sheerid); }
+                    if (choice == choices[1]) { NamespaceConsole(sheerid); }
+                    if (choice == choices[2]) { break; }
                 }
 
             }
             else
             {
                 Console.WriteLine("SheerID service is inaccessible.");
+                Console.ReadKey();
             }
-            Console.ReadKey();
             
+        }
+
+        static void NamespaceConsole(SheerID.API sheerid)
+        {
+            while (1 == 1)
+            {
+                Console.Clear();
+                var choices = new[] { "List", "Map", "Delete", "Main Menu" };
+                var choice = output.PromptKeyMatrix<string>(choices, "Namespace Management:");
+                if (choice == choices[0]) { VerifyListConsole(sheerid); }
+                if (choice == choices[1]) { NamespaceMapConsole(sheerid); }
+                if (choice == choices[2]) { NamespaceDeleteConsole(sheerid); }
+                if (choice == choices[3]) { break; }
+            }
+        }
+
+        static void VerifyListConsole(SheerID.API sheerid)
+        {
+            using (var serviceResponse = sheerid.ListNamespaces())
+            {
+                if (IsError(serviceResponse)) { return; }
+                var response = serviceResponse.GetResponse();
+                if (IsZeroCount(response)) { return; }
+                output.OutputObject(response);
+                Console.ReadKey();
+            }
+        }
+
+        static void NamespaceMapConsole(SheerID.API sheerid)
+        {
+            Console.Clear();
+            using (var serviceResponse = sheerid.ListTemplates())
+            {
+                if (IsError(serviceResponse)) { return; }
+                var response = serviceResponse.GetResponse();
+                if (IsZeroCount(response)) { return; }
+                var template = output.PromptKeyMatrix<API.VerificationRequestTemplate>(response, "Select a template");
+                while (1 == 1)
+                {
+                    var namespaceName = output.PromptFor<string>("Enter a namespace, must contain only lowercase, '-' and numeric characters.");
+                    if (namespaceName == "")
+                    {
+                        Console.WriteLine("Canceled.");
+                        Console.ReadKey();
+                        break;
+                    }
+                    else if (!API.Namespace.IsValidateName(namespaceName))
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        using (var namespaceServiceResponse = sheerid.MapNamespace(namespaceName, template))
+                        {
+                            if (IsError(namespaceServiceResponse)) { return; }
+                            var newNamespace = namespaceServiceResponse.GetResponse();
+                            Console.WriteLine("New namespace created:");
+                            output.OutputObject(newNamespace);
+                            Console.ReadKey();
+                            break;
+                        }
+                    }
+
+                }
+            }
+        }
+
+        static void NamespaceDeleteConsole(SheerID.API sheerid)
+        {
+            Console.Clear();
+            using (var serviceResponse = sheerid.ListNamespaces())
+            {
+                if (IsError(serviceResponse)) { return; }
+                var response = serviceResponse.GetResponse();
+                if (IsZeroCount(response)) { return; }
+                foreach (var selection in output.PromptKeyMatrix<SheerID.API.Namespace>(serviceResponse.GetResponse(), "Select Namespaces to Delete", Output.MatrixSelectionMethod.SelectMany))
+                {
+                    sheerid.DeleteNamespace(selection.Value.Name);
+                }
+            }
         }
 
         static void VerifyConsole(SheerID.API sheerid)

@@ -299,7 +299,7 @@ namespace SheerIDTests
         }
         private SheerID.API.ServiceResponse<List<API.VerificationRequestTemplate>> ListTemplates()
         {
-            return TestAPI.ListTemplate();
+            return TestAPI.ListTemplates();
         }
 
         private static string _namespace = NAMESPACE_PREFIX + Guid.NewGuid().ToString();

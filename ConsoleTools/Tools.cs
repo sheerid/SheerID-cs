@@ -62,7 +62,7 @@ namespace ConsoleTools
         }
         public T PromptFor<T>(string prompt)
         {
-            Console.WriteLine("Enter an organization search filter or hit enter for the complete list");
+            Console.WriteLine(prompt);
             Console.Write(">");
             return (T)Convert.ChangeType(Console.ReadLine(), typeof(T));
         }

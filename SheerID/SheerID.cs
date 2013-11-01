@@ -67,7 +67,7 @@ namespace SheerID
             return this.rest.Get<VerificationRequestTemplate>(string.Format("/template/{0}", templateId));
         }
 
-        public ServiceResponse<List<VerificationRequestTemplate>> ListTemplate()
+        public ServiceResponse<List<VerificationRequestTemplate>> ListTemplates()
         {
             return this.rest.Get<List<VerificationRequestTemplate>>("/template");
         }
@@ -659,7 +659,11 @@ namespace SheerID
             public string Id { get; set; }
             public string Name { get; set; }
             public VerificationRequestConfig Config { get; set; }
-            public Dictionary<string, string> Metadata { get; set; }    
+            public Dictionary<string, string> Metadata { get; set; }
+            public override string ToString()
+            {
+                return Name;
+            }
         }
         public class Namespace
         {
@@ -673,6 +677,10 @@ namespace SheerID
             public class NamespaceValidationException : Exception 
             { 
                 public NamespaceValidationException() : base("SheerId Namespaces must contain only lowercase, '-', or numeric characters.") { } 
+            }
+            public override string ToString()
+            {
+                return Name;
             }
         }
         public class VerificationResponse : ResponseErrors
