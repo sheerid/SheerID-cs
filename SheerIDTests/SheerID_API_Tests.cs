@@ -9,7 +9,7 @@ namespace SheerIDTests
     [TestClass]
     public class APITests
     {
-        static API api;//TODO: specify private
+        static API api;
         static string accessCode="";
         static API.TokenResponse assetToken;
 
@@ -38,7 +38,7 @@ namespace SheerIDTests
         [TestMethod]
         public void Constructor()
         {
-            api = new API(accessCode);
+            api = new API(accessCode, API.SHEERID_ENDPOINT.SANDBOX, true);
         }
 
         [TestMethod]

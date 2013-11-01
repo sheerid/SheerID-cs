@@ -388,18 +388,13 @@ namespace SheerID
                 HttpWebRequest req;
                 if (this.method == "POST")
                 {
-                    req = WebRequest.Create(this.url) as HttpWebRequest;
-
-
-                    req.Method = "POST";
-                    req.Headers.Add(System.Net.HttpRequestHeader.Authorization, this.authHeader);
+                    InitRequestForm(out req);
 
                     byte[] bytes;
                     
                     if (this.files == null)
                     {
-                        req.ContentType = "application/x-www-form-urlencoded";
-                        bytes = Encoding.UTF8.GetBytes(this.QueryString);
+                        WriteRequestBody(req, RequestAsQueryString(req));
                     }
                     else
                     {
@@ -420,31 +415,14 @@ namespace SheerID
                             bytes = bytes.Concat(file.data).ToArray();
                         }
                         bytes = bytes.Concat(Encoding.UTF8.GetBytes(string.Format("{1}--{0}--{1}", boundary, Environment.NewLine))).ToArray();
-                    }
 
-                    req.ContentLength = bytes.Length;
-                    using (var writer = req.GetRequestStream())
-                    {
-                        writer.Write(bytes, 0, bytes.Length);
+                        WriteRequestBody(req, bytes);
                     }
                 }
                 else if (this.method == "PUT")
-                {//TODO: redundant, move to helper
-
-                    req = WebRequest.Create(this.url) as HttpWebRequest;
-                    req.Headers.Add(System.Net.HttpRequestHeader.Authorization, this.authHeader);
-                    req.Method = "PUT";
-                    
-                    byte[] bytes;
-
-                    req.ContentType = "application/x-www-form-urlencoded";
-                    bytes = Encoding.UTF8.GetBytes(this.QueryString);
-
-                    req.ContentLength = bytes.Length;
-                    using (var writer = req.GetRequestStream())
-                    {
-                        writer.Write(bytes, 0, bytes.Length);
-                    }
+                {
+                    InitRequestForm(out req);
+                    WriteRequestBody(req, RequestAsQueryString(req));
                 }
                 else
                 {
@@ -488,6 +466,25 @@ namespace SheerID
             #endregion
 
             #region Private Helpers
+            private void InitRequestForm(out HttpWebRequest req)
+            {
+                req = WebRequest.Create(this.url) as HttpWebRequest;
+                req.Headers.Add(System.Net.HttpRequestHeader.Authorization, this.authHeader);
+                req.Method = this.method;
+            }
+            private byte[] RequestAsQueryString(HttpWebRequest req)
+            {
+                req.ContentType = "application/x-www-form-urlencoded";
+                return Encoding.UTF8.GetBytes(this.QueryString);
+            }
+            private void WriteRequestBody(HttpWebRequest req, byte[] bytes)
+            {
+                req.ContentLength = bytes.Length;
+                using (var writer = req.GetRequestStream())
+                {
+                    writer.Write(bytes, 0, bytes.Length);
+                }
+            }
             ServiceResponse<T> ConsumeResponse<T>(HttpWebResponse resp)
             {
                 var serviceResponse = new ServiceResponse<T> { Status = resp.StatusCode, ContentType = resp.ContentType };
