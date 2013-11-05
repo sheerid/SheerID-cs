@@ -15,6 +15,12 @@ namespace ConsoleTools
         public string DisplayName;
     }
 
+    public class ConsoleNameValue
+    {
+        public string DisplayName;
+        public string Value;
+    }
+
     public class Output
     {
         public Output(System.Reflection.Assembly targetAssembly)
@@ -66,7 +72,7 @@ namespace ConsoleTools
             Console.Write(">");
             return (T)Convert.ChangeType(Console.ReadLine(), typeof(T));
         }
-        public Dictionary<ConsoleKeySelection, T> CreateKeyMatrix<T>(ICollection<T> collection)
+        public Dictionary<ConsoleKeySelection, T> CreateKeyMatrix<T>(ICollection<T> collection, Nullable<int> defaultChoice = null)
         {
             Dictionary<ConsoleKeySelection, T> keyMatrix = new Dictionary<ConsoleKeySelection, T>();
             int i = 0;
@@ -91,7 +97,8 @@ namespace ConsoleTools
                 {
                     ctrl = true;
                 }
-                keyMatrix.Add(new ConsoleKeySelection() { Key = keys[keyIndex], Selected = false, Shift = shft, Ctrl = ctrl }, aff);
+                var selected = (defaultChoice != null && i == defaultChoice.Value+1);
+                keyMatrix.Add(new ConsoleKeySelection() { Key = keys[keyIndex], Selected = selected, Shift = shft, Ctrl = ctrl }, aff);
                 if (i >= 22)
                     break;
             }
@@ -138,9 +145,9 @@ namespace ConsoleTools
             }
             return keyMatrix.Where(o => o.Key.Selected == true);
         }
-        public IEnumerable<KeyValuePair<ConsoleKeySelection, T>> PromptKeyMatrix<T>(ICollection<T> collection, string selectionTitle, MatrixSelectionMethod method = MatrixSelectionMethod.SelectMany)
+        public IEnumerable<KeyValuePair<ConsoleKeySelection, T>> PromptKeyMatrix<T>(ICollection<T> collection, string selectionTitle, MatrixSelectionMethod method = MatrixSelectionMethod.SelectMany, Nullable<int> defaultChoice = null)
         {
-            var keyMatrix = CreateKeyMatrix<T>(collection);
+            var keyMatrix = CreateKeyMatrix<T>(collection, defaultChoice);
             return PromptKeyMatrix<T>(keyMatrix, collection, selectionTitle, method);
         }
         public T PromptKeyMatrix<T>(ICollection<T> collection, string selectionTitle)
@@ -191,12 +198,21 @@ namespace ConsoleTools
                                 foreach (object child in (System.Collections.ICollection)outputValue)
                                 {
                                     if (child.GetType().BaseType == typeof(System.Enum))
+                                    {
                                         Console.WriteLine(new string(' ', depth + 2) + child.GetType().Name + "=" + child);
+                                    }
                                     else
                                     {
                                         Console.WriteLine(new string(' ', depth + 2) + child.GetType().Name);
                                         Console.WriteLine(new string(' ', depth + 2) + "{");
-                                        OutputObject(child, depth + 2);
+                                        if (child.GetType() == typeof(System.String))
+                                        {
+                                            Console.WriteLine(new string(' ', depth + 3) + child);
+                                        }
+                                        else
+                                        {
+                                            OutputObject(child, depth + 2);
+                                        }
                                         Console.WriteLine(new string(' ', depth + 2) + "}");
                                     }
                                 }
