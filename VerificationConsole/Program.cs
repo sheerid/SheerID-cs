@@ -33,11 +33,12 @@ namespace VerificationConsole
                 while (1 == 1)
                 {
                     Console.Clear();
-                    var choices = new[] { "Verify", "Namespace Management", "Quit" };
+                    var choices = new[] { "Verify", "Namespace Management", "Notifier Management", "Quit" };
                     var choice = output.PromptKeyMatrix<string>(choices, "Main Menu:");
                     if (choice == choices[0]) { VerifyConsole(sheerid); }
-                    if (choice == choices[1]) { NamespaceConsole(sheerid); }
-                    if (choice == choices[2]) { break; }
+                    else if (choice == choices[1]) { NamespaceConsole(sheerid); }
+                    else if (choice == choices[2]) { new NotifierConsole().Execute(sheerid); }
+                    else if (choice == choices[3]) { break; }
                 }
 
             }
@@ -48,7 +49,158 @@ namespace VerificationConsole
             }
             
         }
+        private interface IConsoleCommand
+        {
+            void Execute(SheerID.API sheerid);
+        }
+        private class NotifierConsole : IConsoleCommand
+        {
+            public void Execute(SheerID.API sheerid)
+            {
+                while (1 == 1)
+                {
+                    Console.Clear();
+                    var choices = new[] { "Add", "Fire", "Delete", "Main Menu" };
+                    var choice = output.PromptKeyMatrix<string>(choices, "Email Notifier Management:");
+                    if (choice == choices[0]) { new AddEmailNotifierConsole().Execute(sheerid); }
+                    if (choice == choices[2]) { new DeleteEmailNotifierConsole().Execute(sheerid); }
+                    if (choice == choices[3]) { break; }
+                }
+            }
 
+            private class AddEmailNotifierConsole : IConsoleCommand
+            {
+                public void Execute(SheerID.API sheerid)
+                {
+                    Console.Clear();
+
+                    bool alwaysEmailOnSuccess;
+                    while (1 == 1)
+                    {
+                        Console.Clear();
+                        var choices = new[] { "Yes", "No" };
+                        var choice = output.PromptKeyMatrix<string>(choices, "Always Email On Success?", defaultChoice: 0).First(o => o.Key.Selected == true).Value;
+                        alwaysEmailOnSuccess = (choice == choices[0]);
+                        break;
+                    }
+
+                    var promptForValues = new Dictionary<string, ConsoleNameValue>()
+                    {
+                        { "emailFromAddress", new ConsoleNameValue() { DisplayName = "Email From Address"}},
+                        { "emailFromName", new ConsoleNameValue() {DisplayName = "Email From Name"}},
+                        { "successEmailSubject", new ConsoleNameValue() {DisplayName = "Success Email Subject"}},
+                        { "successEmail", new ConsoleNameValue() {DisplayName = "Success Email"}},
+                        { "failureEmailSubject", new ConsoleNameValue() {DisplayName = "Failure Email Subject"}},
+                        { "failureEmail", new ConsoleNameValue() {DisplayName = "Failure Email"}}
+                    };
+
+                    foreach (var nameValue in promptForValues)
+                    {
+                        string newValue = "";
+                        while (newValue == "")
+                        {
+                            Console.Write(nameValue.Value.DisplayName + ": ");
+                            newValue = Console.ReadLine();
+                        }
+                        nameValue.Value.Value = newValue;
+                    }
+
+                    //TODO: Prompt for filters
+
+                    var tags = new List<string>();
+                    Console.WriteLine("Enter one or more tags. Hit enter on an empty line to continue.");
+                    while (1 == 1)
+                    {
+                        Console.Write("New Tag: ");
+                        var newTag = Console.ReadLine();
+                        if (newTag != "")
+                        {
+                            tags.Add(newTag);
+                        }
+                        else if (tags.Count() > 0)
+                        {
+                            break;
+                        }
+                    }
+
+                    using (var response = sheerid.AddNotifier(
+                        type: NotifierType.EMAIL,
+                        emailFromAddress: promptForValues["emailFromAddress"].Value,
+                        emailFromName: promptForValues["emailFromName"].Value,
+                        successEmailSubject: promptForValues["successEmailSubject"].Value,
+                        successEmail: promptForValues["successEmail"].Value,
+                        failureEmailSubject: promptForValues["failureEmailSubject"].Value,
+                        failureEmail: promptForValues["failureEmail"].Value,
+                        alwaysEmailOnSuccess: alwaysEmailOnSuccess,
+                        filters: null,
+                        tags: tags
+                        ))
+                    {
+                        if (IsError(response)) { return; }
+                        Console.WriteLine("New Notifier Added:");
+                        output.OutputObject(response.GetResponse());
+                        Console.ReadKey();
+                    }
+                }
+            }
+            private class DeleteEmailNotifierConsole : IConsoleCommand
+            {
+                public void Execute(API sheerid)
+                {
+                    Console.Clear();
+                    using (var serviceResponse = sheerid.ListNotifiers())
+                    {
+                        if (IsError(serviceResponse)) { return; }
+                        var response = serviceResponse.GetResponse();
+                        if (IsZeroCount(response)) { return; }
+                        foreach (var selection in output.PromptKeyMatrix<SheerID.API.Notifier>(response, "Select Notifiers to Delete", Output.MatrixSelectionMethod.SelectMany))
+                        {
+                            if (sheerid.DeleteNotifier(selection.Value.Id))
+                            {
+                                Console.WriteLine("Delete Notifier [" + selection.Value.Id + "] Succeeded");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Delete Notifier [" + selection.Value.Id + "] Failed");
+                            }
+                            Console.ReadKey();
+                        }
+                    }
+                }
+            }
+            public class FireEmailNotifierConsole : IConsoleCommand
+            {
+                public string requestId = "";
+                public void Execute(API sheerid)
+                {
+                    Console.Clear();
+                    using (var serviceResponse = sheerid.ListNotifiers())
+                    {
+                        if (IsError(serviceResponse)) { return; }
+                        var response = serviceResponse.GetResponse();
+                        if (IsZeroCount(response)) { return; }
+                        var notifier = output.PromptKeyMatrix<SheerID.API.Notifier>(response, "Select Notifiers to Fire");
+                        if (requestId == "")
+                        {
+                            Console.Write("RequestId: ");
+                            requestId = Console.ReadLine();
+                        }
+                        if (sheerid.FireNotifier(notifier.Id ,requestId, NotifierEventType.CREATE))
+                        {
+                            Console.WriteLine("Notifier [" + notifier.ToString() + "] Succeeded");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Notifier [" + notifier.ToString() + "] Failed");
+                        }
+                        Console.ReadKey();
+                    }
+                }
+            }
+
+        }
+
+        //TODO: Convert Console methods to IConsoleCommands
         static void NamespaceConsole(SheerID.API sheerid)
         {
             while (1 == 1)
@@ -196,7 +348,7 @@ namespace VerificationConsole
                 if (verification.requestId != null)
                 {
                     Console.Clear();
-                    var choices = new[] { "Inquire on status", "Update personal information", "Upload assets", "List assets", "Post a new verification", "Download asset to desktop" };
+                    var choices = new[] { "Inquire on status", "Update personal information", "Upload assets", "List assets", "Post a new verification", "Download asset to desktop", "Fire Notifier" };
                     var choice = output.PromptKeyMatrix<string>(choices, "Request exists:");
                     if (choice == choices[0])//inquire
                     {
@@ -264,7 +416,7 @@ namespace VerificationConsole
                     {
                         verification.requestId = null;
                     }
-                    else if (choice == choices[5])//new
+                    else if (choice == choices[5])//download
                     {
                         Console.Write("AssetID: ");
                         Console.Clear();
@@ -288,6 +440,11 @@ namespace VerificationConsole
                         }
                         Console.ReadKey();
                         continue;
+                    }
+                    else if (choice == choices[6])
+                    {
+                        (new NotifierConsole.FireEmailNotifierConsole() {requestId=verification.requestId}).Execute(sheerid);
+                        continue; //skip past verification post
                     }
                 }
 
@@ -322,7 +479,7 @@ namespace VerificationConsole
             }
         }
 
-        static bool IsError<T>(SheerID.API.ServiceResponse<T> serviceResponse)
+        protected static bool IsError<T>(SheerID.API.ServiceResponse<T> serviceResponse)
         {
             if (!serviceResponse.Success)
             {
@@ -333,7 +490,7 @@ namespace VerificationConsole
             }
             return false;
         }
-        static bool IsZeroCount(System.Collections.ICollection collection)
+        protected static bool IsZeroCount(System.Collections.ICollection collection)
         {
             if (collection.Count == 0)
             {
