@@ -52,9 +52,10 @@ namespace SheerID
         #endregion
 
         #region Public Methods
-        public bool FireNotifier(string notifierId, NotifierEventType eventType)
+        public bool FireNotifier(string notifierId, string requestId, NotifierEventType eventType)
         {
             return this.rest.Post<Notifier>(string.Format("/notifier/{0}/fire", notifierId), new Dictionary<string, string>() {
+            { "requestId", requestId },
             { "eventType", eventType.ToString() } }).Status == HttpStatusCode.NoContent;
         }
 
@@ -68,26 +69,30 @@ namespace SheerID
             return this.rest.Get<Notifier>(string.Format("/notifier/{0}", notifierId));
         }
 
-        public ServiceResponse<Notifier> AddNotifier(NotifierType type, string emailFromAddress, string emailFromName, string successEmailSubject, string failureEmailSubject, bool alwaysEmailOnSuccess, List<NotifierFilter> filters, List<string> tags)
+        public ServiceResponse<Notifier> AddNotifier(NotifierType type, string emailFromAddress, string emailFromName, string successEmailSubject, string successEmail, string failureEmailSubject, string failureEmail, bool alwaysEmailOnSuccess, List<NotifierFilter> filters, List<string> tags)
         {
             return this.rest.Post<Notifier>("/notifier", new Dictionary<string, string>() {
             { "emailFromAddress", emailFromAddress },
             { "emailFromName", emailFromName },
             { "successEmailSubject", successEmailSubject },
+            { "successEmail", System.Net.WebUtility.UrlEncode(successEmail) },
             { "failureEmailSubject", failureEmailSubject },
+            { "failureEmail", System.Net.WebUtility.UrlEncode(failureEmail) },
             { "alwaysEmailOnSuccess", alwaysEmailOnSuccess.ToString() },
             { "type", type.ToString() },
             { "filters", ListToString<NotifierFilter>(filters) },
             { "tags", ListToString<string>(tags) } });
         }
 
-        public ServiceResponse<Notifier> UpdateNotifier(string notifierId, string emailFromAddress, string emailFromName, string successEmailSubject, string failureEmailSubject, bool alwaysEmailOnSuccess, List<NotifierFilter> filters, List<string> tags)
+        public ServiceResponse<Notifier> UpdateNotifier(string notifierId, string emailFromAddress, string emailFromName, string successEmailSubject, string successEmail, string failureEmailSubject, string failureEmail, bool alwaysEmailOnSuccess, List<NotifierFilter> filters, List<string> tags)
         {
             return this.rest.Post<Notifier>(string.Format("/notifier/{0}", notifierId), new Dictionary<string, string>() {
             { "emailFromAddress", emailFromAddress },
             { "emailFromName", emailFromName },
             { "successEmailSubject", successEmailSubject },
+            { "successEmail", System.Net.WebUtility.UrlEncode(successEmail) },
             { "failureEmailSubject", failureEmailSubject },
+            { "failureEmail", System.Net.WebUtility.UrlEncode(failureEmail) },
             { "alwaysEmailOnSuccess", alwaysEmailOnSuccess.ToString() },
             { "filters", ListToString<NotifierFilter>(filters) },
             { "tags", ListToString<string>(tags) } });
@@ -479,7 +484,7 @@ namespace SheerID
                     req.Method = this.method;
                 }
 
-//Uncommenting this will allow rest service calls to a dev server without a valid https certificate
+//Uncommenting this will allow rest service calls to a dev server without a valid https SSL/TLS certificate
 //#if (DEBUG)
 //                ServicePointManager
 //                    .ServerCertificateValidationCallback +=
@@ -498,7 +503,14 @@ namespace SheerID
                 {
                     using (HttpWebResponse resp = (HttpWebResponse)e.Response)
                     {
-                        serviceResponse = ConsumeResponse<T>(resp);
+                        if (resp == null)
+                        {
+                            throw e;
+                        }
+                        else
+                        {
+                            serviceResponse = ConsumeResponse<T>(resp);
+                        }
                     }
                 }
 
@@ -714,11 +726,11 @@ namespace SheerID
             public NotifierType Type { get; set; }
             public Dictionary<string, string> Config { get; set; }
             public Dictionary<string, string> Metadata { get; set; }
-            public List<string> Tags { get; set; }
+            public List<string> Tags { get; set; } //TODO: Tags might be enums, converted into SIMPLE_TEMPLATE_V1, find out possible values
             public List<NotifierFilter> Filters { get; set; }
             public override string ToString()
             {
-                return Type + " - " + Id;
+                return Id  + (Config.ContainsKey("emailFromName") ? " - " + Config["emailFromName"] : "");
             }
         }
         public class VerificationRequestTemplate
@@ -847,6 +859,10 @@ namespace SheerID
         string ListToString<T>(List<T> list)
         {
             string r="";
+            if (list == null)
+            {
+                return "";
+            }
             foreach (T item in list)
             {
                 r += "," + item.ToString();
