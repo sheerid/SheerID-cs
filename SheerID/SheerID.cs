@@ -52,6 +52,52 @@ namespace SheerID
         #endregion
 
         #region Public Methods
+        public bool FireNotifier(string notifierId, NotifierEventType eventType)
+        {
+            return this.rest.Post<Notifier>(string.Format("/notifier/{0}/fire", notifierId), new Dictionary<string, string>() {
+            { "eventType", eventType.ToString() } }).Status == HttpStatusCode.NoContent;
+        }
+
+        public ServiceResponse<List<Notifier>> ListNotifiers()
+        {
+            return this.rest.Get<List<Notifier>>("/notifier");
+        }
+
+        public ServiceResponse<Notifier> GetNotifier(string notifierId)
+        {
+            return this.rest.Get<Notifier>(string.Format("/notifier/{0}", notifierId));
+        }
+
+        public ServiceResponse<Notifier> AddNotifier(NotifierType type, string emailFromAddress, string emailFromName, string successEmailSubject, string failureEmailSubject, bool alwaysEmailOnSuccess, List<NotifierFilter> filters, List<string> tags)
+        {
+            return this.rest.Post<Notifier>("/notifier", new Dictionary<string, string>() {
+            { "emailFromAddress", emailFromAddress },
+            { "emailFromName", emailFromName },
+            { "successEmailSubject", successEmailSubject },
+            { "failureEmailSubject", failureEmailSubject },
+            { "alwaysEmailOnSuccess", alwaysEmailOnSuccess.ToString() },
+            { "type", type.ToString() },
+            { "filters", ListToString<NotifierFilter>(filters) },
+            { "tags", ListToString<string>(tags) } });
+        }
+
+        public ServiceResponse<Notifier> UpdateNotifier(string notifierId, string emailFromAddress, string emailFromName, string successEmailSubject, string failureEmailSubject, bool alwaysEmailOnSuccess, List<NotifierFilter> filters, List<string> tags)
+        {
+            return this.rest.Post<Notifier>(string.Format("/notifier/{0}", notifierId), new Dictionary<string, string>() {
+            { "emailFromAddress", emailFromAddress },
+            { "emailFromName", emailFromName },
+            { "successEmailSubject", successEmailSubject },
+            { "failureEmailSubject", failureEmailSubject },
+            { "alwaysEmailOnSuccess", alwaysEmailOnSuccess.ToString() },
+            { "filters", ListToString<NotifierFilter>(filters) },
+            { "tags", ListToString<string>(tags) } });
+        }
+
+        public bool DeleteNotifier(string notifierId)
+        {
+            return this.rest.Delete<Notifier>(string.Format("/notifier/{0}", notifierId)).Status == HttpStatusCode.NoContent;
+        }
+
         public ServiceResponse<VerificationRequestTemplate> CreateTemplate(List<AffiliationType> affiliationTypes, List<AssetType> assetTypes, List<string> rewardIds, List<VerificationType> verificationTypes, string name)
         {
             return this.rest.Post<VerificationRequestTemplate>("/template", new Dictionary<string, string>() { 
@@ -433,6 +479,13 @@ namespace SheerID
                     req.Method = this.method;
                 }
 
+//Uncommenting this will allow rest service calls to a dev server without a valid https certificate
+//#if (DEBUG)
+//                ServicePointManager
+//                    .ServerCertificateValidationCallback +=
+//                    (sender, cert, chain, sslPolicyErrors) => true;
+//#endif
+
                 ServiceResponse<T> serviceResponse;
                 try
                 {
@@ -651,6 +704,23 @@ namespace SheerID
         }
 
         #region SheerID API Objects
+        public class NotifierFilter
+        {
+            //TODO: find out what filters are
+        }
+        public class Notifier
+        {
+            public string Id { get; set; }
+            public NotifierType Type { get; set; }
+            public Dictionary<string, string> Config { get; set; }
+            public Dictionary<string, string> Metadata { get; set; }
+            public List<string> Tags { get; set; }
+            public List<NotifierFilter> Filters { get; set; }
+            public override string ToString()
+            {
+                return Type + " - " + Id;
+            }
+        }
         public class VerificationRequestTemplate
         {
             public string Id { get; set; }
@@ -786,6 +856,8 @@ namespace SheerID
         #endregion
     }
 
+    public enum NotifierEventType { CREATE, SYNCHRONOUS_UPDATE, ASYNCHRONOUS_UPDATE };
+    public enum NotifierType { EMAIL, HTTP };
     public enum AssetStatus { NULL, ACCEPTED, PENDING_REVIEW, REJECTED };
     public enum VerificationStatus { NULL, NEW, OPEN, PENDING, COMPLETE };
     public enum OrganizationType { NULL, UNIVERSITY, MEMBERSHIP, MILITARY, FIRST_RESPONDER, MEDICAL, NON_PROFIT, CORPORATE, K12 };
